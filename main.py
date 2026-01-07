@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 # ===== НАСТРОЙКИ =====
-TOKEN = "8260007631:AAEKwhr7LiWbTmKul50fcCSuEwKGDlGaktc"
+TOKEN = "TOKEN"
 
 
 HIGH_ADMINS = [
@@ -38,7 +38,7 @@ def save_data(data):
 data = load_data()
 ADMINS = data["admins"]
 session = AiohttpSession(
-    proxy="http://user347683:74picw@194.87.150.73:5110"
+    proxy="http://test.com"
 )
 
 bot = Bot(
@@ -250,3 +250,4 @@ async def user_message(msg: Message):
 if __name__ == "__main__":
     print("🤖 бот жив")
     dp.run_polling(bot)
+
