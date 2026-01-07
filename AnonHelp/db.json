@@ -1,0 +1,28 @@
+{
+    "clients": {
+        "1": {
+            "tg_id": 5046560155,
+            "admin": null,
+            "user": null
+        },
+        "2": {
+            "tg_id": 1513168841,
+            "admin": null,
+            "user": "3"
+        },
+        "3": {
+            "tg_id": 8328650331,
+            "admin": 1513168841,
+            "user": null
+        },
+        "4": {
+            "tg_id": 6031308811,
+            "admin": null,
+            "user": null
+        }
+    },
+    "admins": [
+        1513168841,
+        5046560155
+    ]
+}
