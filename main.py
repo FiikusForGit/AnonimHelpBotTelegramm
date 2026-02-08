@@ -117,28 +117,8 @@ async def start_cmd(msg: Message):
     await msg.answer(
         f"Привет! Ты можешь написать сюда любое сообщение, и администратор ответит тебе анонимно."
     )
-    user_id = msg.from_user.id
-    user_cid = get_or_create_user(user_id)
-    data["clients"][user_cid]["username"] = msg.from_user.username
-    save_data(data)
 
 # --- команда /info ---
-@dp.message(Command("info"))
-async def info_cmd(msg: Message):
-    if not msg.from_user.id in HIGH_ADMINS:
-        return
-    parts = msg.text.split()
-    if len(parts) != 2:
-        await msg.answer("Использование: /info Номер_Пользователя")
-        return
-    cid = parts[1]
-    target_user = data["clients"][cid]
-    print(target_user)
-    await msg.answer(
-        f"✅ Информация на пользователя #{cid}:\n\n"
-        f"{json.dumps(target_user,indent=2)}"
-        )
-
 @dp.message(Command("vievdb"))
 async def vievdb_cmd(msg: Message):
     if not msg.from_user.id in HIGH_ADMINS:
@@ -322,10 +302,6 @@ async def user_message(msg: Message):
 
     # Получение пользователя
     client = data["clients"][cid]
-    if not "username" in client or client["username"] == None:
-        print(msg.from_user.username)
-        client["username"] = msg.from_user.username
-        save_data(data)
     # Если пользователь не админ, то его сообещния бот регестрировать не будет
     if user_id not in ADMINS:
             
@@ -358,3 +334,4 @@ async def user_message(msg: Message):
 if __name__ == "__main__":
     print("🤖 бот жив")
     dp.run_polling(bot)
+
