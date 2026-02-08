@@ -1,10 +1,15 @@
 # ===== Импорт библиотек =====
 import json
+import os
+import sys
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.client.session.aiohttp import AiohttpSession
 from termcolor import cprint
+
+load_dotenv()
 
 # ===== Включение логв =====
 import logging
@@ -12,15 +17,35 @@ logging.basicConfig(level=logging.INFO)
 
 
 # ===== Настройки =====
-TOKEN = "TOKEN"
 
+# ----- выбираем режим (main или test) -----
+# можно передать аргумент при запуске
+# python main.py main   или python main.py test
+mode = input("Введите режим:\n")
+BASE_DIR = ""
+if mode == "main":
+    BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot_main")
+elif mode == "test":
+    BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot_test")
+else:
+    raise ValueError("Неверный режим: используйте 'main' или 'test'")
+
+# ----- загружаем .env из выбранной папки -----
+env_path = os.path.join(BASE_DIR, ".env")
+load_dotenv(env_path)
+
+# ----- получаем токен и файл базы -----
+TOKEN = os.getenv("TOKEN")
+DATA_FILE = os.path.join(BASE_DIR, os.getenv("DATA_FILE", "db.json"))
+
+print("Используем TOKEN:", TOKEN)
+print("Используем DATA_FILE:", DATA_FILE)
 
 HIGH_ADMINS = [
     5046560155,
     1513168841
 ]
 
-DATA_FILE = "db.json"
 # =====================
 
 
@@ -56,7 +81,7 @@ def get_or_create_user(user_id):
 
     # создание нового id
     new_id = str(len(data["clients"]) + 1)
-    data["clients"][new_id] = {"tg_id": user_id, "admin": None, "user": None}
+    data["clients"][new_id] = {"tg_id": user_id, "admin": None, "user": None,"username": None}
     save_data(data)
     return new_id
 # --- получить дату пользователя ---
@@ -76,9 +101,12 @@ async def notify_admins(text):
     """Отправить сообщение всем админам"""
     for admin_id in ADMINS:
         try:
-            await bot.send_message(admin_id, text)
+           await bot.send_message(admin_id, text)
         except:
             pass
+
+# ======= Функции =======
+
 
 
 # ======= Основные команды =======
@@ -87,9 +115,38 @@ async def notify_admins(text):
 @dp.message(Command("start"))
 async def start_cmd(msg: Message):
     await msg.answer(
-        "Привет! Ты можешь написать сюда любое сообщение, и администратор ответит тебе анонимно."
+        f"Привет! Ты можешь написать сюда любое сообщение, и администратор ответит тебе анонимно."
     )
+    user_id = msg.from_user.id
+    user_cid = get_or_create_user(user_id)
+    data["clients"][user_cid]["username"] = msg.from_user.username
+    save_data(data)
 
+# --- команда /info ---
+@dp.message(Command("info"))
+async def info_cmd(msg: Message):
+    if not msg.from_user.id in HIGH_ADMINS:
+        return
+    parts = msg.text.split()
+    if len(parts) != 2:
+        await msg.answer("Использование: /info Номер_Пользователя")
+        return
+    cid = parts[1]
+    target_user = data["clients"][cid]
+    print(target_user)
+    await msg.answer(
+        f"✅ Информация на пользователя #{cid}:\n\n"
+        f"{json.dumps(target_user,indent=2)}"
+        )
+
+@dp.message(Command("vievdb"))
+async def vievdb_cmd(msg: Message):
+    if not msg.from_user.id in HIGH_ADMINS:
+         return
+    await msg.answer(
+	f"✅ вся дб: \n"
+	f"{json.dumps(data,indent=4)}"
+	)
 # --- команда /untake чтобы отвязать закреплённого пользователя ---
 @dp.message(Command("untake"))
 async def un_take_cmd(msg:Message):
@@ -113,7 +170,6 @@ async def un_take_cmd(msg:Message):
 
         # Уведомление об успехе
         await msg.answer(f"✅ Успешно убали вашего закреплённого пользователя!")
-        await notify_user(user_id,"✅ Админ прекратил с вами диалог")
         save_data(data)
     except:
         pass
@@ -124,7 +180,7 @@ async def take_cmd(msg: Message):
     if msg.from_user.id not in ADMINS:
         return
     # admin_cid - уникальный номер админа
-    admin_cid = find_user(admin_id)[2]
+    admin_cid = find_user(msg.from_user.id)[2]
 
     # Проверка аргументов
     parts = msg.text.split()
@@ -145,8 +201,9 @@ async def take_cmd(msg: Message):
         await msg.answer("⚠ Данного пользователя уже взял другой админ")
         return
     # Изменение даты, чтобы закрепились закреплённый пользователь/админ
-    data["clients"][cid]["admin"] = admin_id
+    data["clients"][cid]["admin"] = msg.from_user.id
     data["clients"][admin_cid]["user"] = cid
+    data["clients"][cid]["username"] = msg.from_user.first_name
     # Сохранение даты и уведомление админа
     save_data(data)
     await msg.answer(f"Вы взяли пользователя #{cid}")
@@ -265,6 +322,10 @@ async def user_message(msg: Message):
 
     # Получение пользователя
     client = data["clients"][cid]
+    if not "username" in client or client["username"] == None:
+        print(msg.from_user.username)
+        client["username"] = msg.from_user.username
+        save_data(data)
     # Если пользователь не админ, то его сообещния бот регестрировать не будет
     if user_id not in ADMINS:
             
@@ -297,5 +358,3 @@ async def user_message(msg: Message):
 if __name__ == "__main__":
     print("🤖 бот жив")
     dp.run_polling(bot)
-
-
